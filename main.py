@@ -8,7 +8,7 @@ from config import TELEGRAM_API, TELEGRAM_TOKEN
 
 
 KNIGILUB_PROFILE_PATTERN = (
-    r"http://knigilub.ru/users/w+"
+    r"http://knigilub.ru/users/\w+"
 )
 
 NEWS_PATTERN = (
@@ -125,7 +125,7 @@ def main():
     loop = asyncio.get_event_loop()
     tasks = [
         run_task_every(600, fetch_new_subscribers),
-        run_task_every(500, fetch_knigilub_news),
+        run_task_every(600, fetch_knigilub_news),
         run_task_every(60, send_news),
     ]
     loop.run_until_complete(asyncio.wait(tasks))
