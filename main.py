@@ -8,7 +8,7 @@ from config import TELEGRAM_API, TELEGRAM_TOKEN
 
 
 KNIGILUB_PROFILE_PATTERN = (
-    r"http://knigilub.ru/users/w+"
+    r"http://knigilub.ru/users/\w+"
 )
 
 NEWS_PATTERN = (
@@ -47,16 +47,17 @@ class Subscriber(object):
             try:
                 parsed_new = re.search(AUTHOR_PATTERN, raw_new).groups()
             except Exception:
-                errMsg = "Can't analyze news: '%s', profile: '%s'" % (
-                    raw_new, self.knigilub_profile)
-                raise Exception(errMsg)
+                continue
             new = New(*parsed_new)
             if self._initial_cache:
                 if new not in self.news_cache:
                     self.news_cache.add(new)
+                    print("add new to queue:", new)
                     self.news_queue.put_nowait(format_new(new))
             else:
                 self.news_cache.add(new)
+        # print("initial cache for profile:", self.knigilub_profile)
+        assert self.news_cache
         self._initial_cache = True
 
 
@@ -73,7 +74,6 @@ def fetch_knigilub_news():
             'GET', sub_profile,
         )
         text = yield from response.text()
-        response.close()
         sub.parse_news(text)
     print("finish fetch_knigilub_news")
 
@@ -115,22 +115,27 @@ def fetch_new_subscribers():
 
 
 @asyncio.coroutine
-def run_task_every(tiemout, task):
+def run_tasks_every(tiemout, tasks):
     while True:
-        yield from task()
+        for task in tasks:
+            yield from task()
         yield from asyncio.sleep(tiemout)
 
 
 def main():
     loop = asyncio.get_event_loop()
-    tasks = [
-        run_task_every(600, fetch_new_subscribers),
-        run_task_every(500, fetch_knigilub_news),
-        run_task_every(60, send_news),
-    ]
-    loop.run_until_complete(asyncio.wait(tasks))
+    tasks = [fetch_new_subscribers, fetch_knigilub_news, send_news]
+    task = run_tasks_every(600, tasks)
+    loop.run_until_complete(task)
+
+
+def test_fetch_profile():
+    subscribers[25] = Subscriber(25, "http://knigilub.ru/users/1111")
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(fetch_knigilub_news())
 
 
 if __name__ == '__main__':
     pass
     main()
+    # test_fetch_profile()
